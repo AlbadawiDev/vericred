@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row">
+  <div class="col-md-8">
+    <div class="card mb-3"><div class="card-body">
+      <h3>{{ certificate.student_name }}</h3>
+      <p class="mb-1"><strong>Course:</strong> {{ certificate.course_name }}</p>
+      <p class="mb-1"><strong>Institution:</strong> {{ certificate.institution_name }}</p>
+      <p class="mb-1"><strong>Status:</strong> <span class="badge text-bg-primary">{{ certificate.status }}</span></p>
+      <p class="mb-1"><strong>Certificate ID:</strong> {{ certificate.certificate_id }}</p>
+      {% if certificate.revocation_reason %}<p class="text-danger"><strong>Revocation reason:</strong> {{ certificate.revocation_reason }}</p>{% endif %}
+      <a class="btn btn-outline-secondary" href="{% url 'certificate_update' certificate.pk %}">Edit Metadata</a>
+    </div></div>
+  </div>
+  <div class="col-md-4">
+    <div class="card mb-3"><div class="card-body">
+      <h5>Workflow update</h5>
+      <form method="post" action="{% url 'certificate_status_update' certificate.pk %}">{% csrf_token %}
+        {{ status_form.as_p }}
+        <button class="btn btn-warning w-100">Update Status</button>
+      </form>
+    </div></div>
+    {% if certificate.qr_code %}
+      <div class="card"><div class="card-body text-center">
+        <h5>Verification QR</h5>
+        <img src="{{ certificate.qr_code.url }}" class="img-fluid" alt="QR code">
+        <p><a href="{% url 'public_verify' certificate.verification_token %}" target="_blank">Public verify link</a></p>
+      </div></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
