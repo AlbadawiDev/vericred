@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="card"><div class="card-body">
+<h3>{% if is_edit %}Edit{% else %}Create{% endif %} Certificate</h3>
+<form method="post">{% csrf_token %}
+{{ form.as_p }}
+<button class="btn btn-success">Save</button>
+</form>
+</div></div>
+{% endblock %}

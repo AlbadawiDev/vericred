@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2 class="mb-3">Dashboard</h2>
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="card card-body"><h6>Total</h6><h3>{{ total_certificates }}</h3></div></div>
+  <div class="col-md-3"><div class="card card-body"><h6>Pending Review</h6><h3>{{ pending_reviews }}</h3></div></div>
+  <div class="col-md-3"><div class="card card-body"><h6>Issued</h6><h3>{{ issued_count }}</h3></div></div>
+  <div class="col-md-3"><div class="card card-body"><h6>Revoked</h6><h3>{{ revoked_count }}</h3></div></div>
+</div>
+<a href="{% url 'certificate_create' %}" class="btn btn-primary mb-3">Create Certificate</a>
+<table class="table table-striped bg-white">
+  <thead><tr><th>Student</th><th>Course</th><th>Status</th><th>Created By</th></tr></thead>
+  <tbody>
+    {% for cert in recent_certificates %}
+      <tr><td><a href="{% url 'certificate_detail' cert.pk %}">{{ cert.student_name }}</a></td><td>{{ cert.course_name }}</td><td>{{ cert.status }}</td><td>{{ cert.created_by.username }}</td></tr>
+    {% empty %}
+      <tr><td colspan="4">No certificates yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
