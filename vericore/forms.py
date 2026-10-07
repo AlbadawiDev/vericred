@@ -4,6 +4,12 @@ from .models import Certificate, CertificateStatus
 
 
 class CertificateForm(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs['class'] = 'form-control'
+        self.fields['issue_date'].widget = forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d')
+
     class Meta:
         model = Certificate
         fields = [
@@ -20,6 +26,14 @@ class StatusUpdateForm(forms.Form):
     status = forms.ChoiceField(choices=CertificateStatus.choices)
     notes = forms.CharField(widget=forms.Textarea, required=False)
     revocation_reason = forms.CharField(widget=forms.Textarea, required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            field.widget.attrs['class'] = 'form-control'
+        self.fields['notes'].widget.attrs['rows'] = 2
+        self.fields['revocation_reason'].widget.attrs['rows'] = 2
+        self.fields['revocation_reason'].help_text = 'Required only when revoking an issued certificate.'
 
     def clean(self):
         cleaned = super().clean()

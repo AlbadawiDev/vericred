@@ -1,13 +1,15 @@
 {% extends 'base.html' %}
 {% block content %}
-<h2 class="mb-3">Dashboard</h2>
+<p class="text-uppercase text-muted small mb-1">Institutional certificate workflow</p>
+<h2 class="mb-2">Overview</h2>
+<p class="text-muted mb-4">Issue trusted credentials with independent review and public QR verification.</p>
 <div class="row g-3 mb-4">
   <div class="col-md-3"><div class="card card-body"><h6>Total</h6><h3>{{ total_certificates }}</h3></div></div>
   <div class="col-md-3"><div class="card card-body"><h6>Pending Review</h6><h3>{{ pending_reviews }}</h3></div></div>
   <div class="col-md-3"><div class="card card-body"><h6>Issued</h6><h3>{{ issued_count }}</h3></div></div>
   <div class="col-md-3"><div class="card card-body"><h6>Revoked</h6><h3>{{ revoked_count }}</h3></div></div>
 </div>
-<a href="{% url 'certificate_create' %}" class="btn btn-primary mb-3">Create Certificate</a>
+{% if can_create %}<a href="{% url 'certificate_create' %}" class="btn btn-primary mb-3">Create certificate</a>{% endif %}
 <table class="table table-striped bg-white">
   <thead><tr><th>Student</th><th>Course</th><th>Status</th><th>Created By</th></tr></thead>
   <tbody>

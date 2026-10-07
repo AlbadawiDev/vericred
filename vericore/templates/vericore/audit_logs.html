@@ -5,12 +5,17 @@
   <div class="col-md-6"><input class="form-control" type="text" name="certificate_id" value="{{ certificate_id }}" placeholder="Filter by certificate UUID"></div>
   <div class="col-md-2"><button class="btn btn-outline-secondary w-100">Filter</button></div>
 </form>
-<table class="table table-striped bg-white">
+<div class="table-responsive"><table class="table table-striped bg-white">
 <thead><tr><th>Time</th><th>Certificate</th><th>Actor</th><th>Action</th><th>Transition</th><th>Notes</th></tr></thead>
 <tbody>
 {% for log in logs %}
 <tr><td>{{ log.timestamp }}</td><td>{{ log.certificate.certificate_id }}</td><td>{{ log.actor.username }}</td><td>{{ log.action }}</td><td>{{ log.previous_status }} → {{ log.new_status }}</td><td>{{ log.notes }}</td></tr>
 {% empty %}<tr><td colspan="6">No audit entries found.</td></tr>{% endfor %}
 </tbody>
-</table>
+</table></div>
+<nav aria-label="Audit pages" class="d-flex gap-3">
+  {% if logs.has_previous %}<a href="?certificate_id={{ certificate_id|urlencode }}&page={{ logs.previous_page_number }}">Previous</a>{% endif %}
+  <span>Page {{ logs.number }} of {{ logs.paginator.num_pages }} · {{ logs.paginator.count }} events</span>
+  {% if logs.has_next %}<a href="?certificate_id={{ certificate_id|urlencode }}&page={{ logs.next_page_number }}">Next</a>{% endif %}
+</nav>
 {% endblock %}

@@ -1,5 +1,7 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
+import tempfile
+import shutil
 from django.urls import reverse
 
 from .models import AuditLog, Certificate, CertificateStatus, UserRole
@@ -8,7 +10,22 @@ from .models import AuditLog, Certificate, CertificateStatus, UserRole
 User = get_user_model()
 
 
-class CertificateWorkflowTests(TestCase):
+class IsolatedMediaTestCase(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.temp_media = tempfile.mkdtemp(prefix='vericred-test-')
+        cls.media_settings = override_settings(MEDIA_ROOT=cls.temp_media)
+        cls.media_settings.enable()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.media_settings.disable()
+        shutil.rmtree(cls.temp_media)
+        super().tearDownClass()
+
+
+class CertificateWorkflowTests(IsolatedMediaTestCase):
     def setUp(self):
         self.issuer = User.objects.create_user(username='issuer', password='pass12345')
         self.reviewer = User.objects.create_user(username='reviewer', password='pass12345')
@@ -80,7 +97,7 @@ class CertificateWorkflowTests(TestCase):
         self.assertEqual(cert.status, CertificateStatus.ISSUED)
 
 
-class AuditLogTests(TestCase):
+class AuditLogTests(IsolatedMediaTestCase):
     def test_log_created_on_create(self):
         user = User.objects.create_user(username='creator', password='pass12345')
         user.profile.role = UserRole.ISSUER
