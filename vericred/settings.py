@@ -1,11 +1,28 @@
 from pathlib import Path
 import os
+from urllib.parse import urlsplit
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
 DEBUG = os.getenv('DEBUG', '1') == '1'
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',') if os.getenv('ALLOWED_HOSTS') else ['*']
+SECRET_KEY = os.getenv('SECRET_KEY', 'dev-only-do-not-use-in-production')
+ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,[::1]').split(',') if host.strip()]
+if not DEBUG and (len(SECRET_KEY) < 50 or SECRET_KEY.startswith('dev-') or '*' in ALLOWED_HOSTS):
+    raise ImproperlyConfigured('Production requires a strong SECRET_KEY and explicit ALLOWED_HOSTS.')
+PUBLIC_BASE_URL = os.getenv('PUBLIC_BASE_URL', 'http://127.0.0.1:8013').rstrip('/')
+public_origin = urlsplit(PUBLIC_BASE_URL)
+if public_origin.scheme not in {'http', 'https'} or not public_origin.netloc or public_origin.query or public_origin.fragment or public_origin.path or public_origin.username or public_origin.password:
+    raise ImproperlyConfigured('PUBLIC_BASE_URL must be a complete http(s) origin without credentials or path.')
+if not DEBUG and public_origin.scheme != 'https':
+    raise ImproperlyConfigured('PUBLIC_BASE_URL must use HTTPS in production.')
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_SSL_REDIRECT = not DEBUG
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
+SECURE_HSTS_PRELOAD = not DEBUG
+SECURE_CONTENT_TYPE_NOSNIFF = True
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -49,7 +66,7 @@ WSGI_APPLICATION = 'vericred.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': os.getenv('DATABASE_PATH', str(BASE_DIR / 'db.sqlite3')),
     }
 }
 
@@ -76,4 +93,4 @@ LOGIN_URL = 'login'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = Path(os.getenv('MEDIA_ROOT', str(BASE_DIR / 'media')))

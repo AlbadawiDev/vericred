@@ -1,12 +1,14 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import CertificateForm, StatusUpdateForm
 from .models import AuditLog, Certificate, CertificateStatus
-from .permissions import can_edit_certificate, can_issue, can_review, get_user_role
+from .permissions import can_edit_certificate, can_issue, can_manage_certificate, can_review, get_user_role
 
 
 TRANSITIONS = {
@@ -23,6 +25,7 @@ def dashboard(request):
     role = get_user_role(request.user)
     context = {
         'role': role,
+        'can_create': can_issue(request.user),
         'total_certificates': Certificate.objects.count(),
         'pending_reviews': Certificate.objects.filter(status=CertificateStatus.PENDING_REVIEW).count(),
         'issued_count': Certificate.objects.filter(status=CertificateStatus.ISSUED).count(),
@@ -52,7 +55,8 @@ def certificate_list(request):
         request,
         'vericore/certificate_list.html',
         {
-            'certificates': certificates,
+            'certificates': Paginator(certificates, 20).get_page(request.GET.get('page')),
+            'can_create': can_issue(request.user),
             'status_choices': CertificateStatus.choices,
             'selected_status': status,
             'query': query,
@@ -61,6 +65,7 @@ def certificate_list(request):
 
 
 @login_required
+@transaction.atomic
 def certificate_create(request):
     if not can_issue(request.user):
         return HttpResponseForbidden('Not allowed')
@@ -86,8 +91,9 @@ def certificate_create(request):
 
 
 @login_required
+@transaction.atomic
 def certificate_update(request, pk):
-    certificate = get_object_or_404(Certificate, pk=pk)
+    certificate = get_object_or_404(Certificate.objects.select_for_update(), pk=pk)
     if not can_edit_certificate(request.user, certificate):
         return HttpResponseForbidden('Cannot edit in current state or role.')
 
@@ -112,18 +118,33 @@ def certificate_update(request, pk):
 @login_required
 def certificate_detail(request, pk):
     certificate = get_object_or_404(Certificate.objects.select_related('created_by', 'reviewed_by', 'approved_by'), pk=pk)
-    return render(request, 'vericore/certificate_detail.html', {'certificate': certificate, 'status_form': StatusUpdateForm(initial={'status': certificate.status})})
+    allowed = []
+    for status in TRANSITIONS.get(certificate.status, []):
+        if status in [CertificateStatus.APPROVED, CertificateStatus.REJECTED]:
+            permitted = can_review(request.user)
+        else:
+            permitted = can_manage_certificate(request.user, certificate)
+        if permitted:
+            allowed.append(status)
+    form = StatusUpdateForm()
+    form.fields['status'].choices = [(status, status) for status in allowed]
+    return render(request, 'vericore/certificate_detail.html', {
+        'certificate': certificate, 'status_form': form, 'can_update_status': bool(allowed),
+        'can_edit': can_edit_certificate(request.user, certificate),
+        'is_public': certificate.status in [CertificateStatus.ISSUED, CertificateStatus.REVOKED],
+    })
 
 
 @login_required
+@transaction.atomic
 def certificate_status_update(request, pk):
-    certificate = get_object_or_404(Certificate, pk=pk)
+    certificate = get_object_or_404(Certificate.objects.select_for_update(), pk=pk)
     if request.method != 'POST':
         return redirect('certificate_detail', pk=pk)
 
     form = StatusUpdateForm(request.POST)
     if not form.is_valid():
-        messages.error(request, 'Invalid workflow update request.')
+        messages.error(request, ' '.join(str(error) for errors in form.errors.values() for error in errors))
         return redirect('certificate_detail', pk=pk)
 
     new_status = form.cleaned_data['status']
@@ -142,15 +163,17 @@ def certificate_status_update(request, pk):
     if new_status in [CertificateStatus.APPROVED, CertificateStatus.REJECTED] and not can_review(request.user):
         return HttpResponseForbidden('Reviewer role required.')
 
-    if new_status in [CertificateStatus.PENDING_REVIEW, CertificateStatus.ISSUED, CertificateStatus.REVOKED] and not can_issue(request.user):
+    if new_status in [CertificateStatus.DRAFT, CertificateStatus.PENDING_REVIEW, CertificateStatus.ISSUED, CertificateStatus.REVOKED] and not can_manage_certificate(request.user, certificate):
         return HttpResponseForbidden('Issuer role required.')
 
     old_status = certificate.status
     certificate.status = new_status
     if new_status in [CertificateStatus.APPROVED, CertificateStatus.REJECTED]:
         certificate.reviewed_by = request.user
-    if new_status == CertificateStatus.ISSUED:
+    if new_status == CertificateStatus.APPROVED:
         certificate.approved_by = request.user
+    if new_status in [CertificateStatus.REJECTED, CertificateStatus.DRAFT]:
+        certificate.approved_by = None
     if new_status == CertificateStatus.REVOKED:
         certificate.revocation_reason = reason
     certificate.save()
@@ -169,7 +192,8 @@ def certificate_status_update(request, pk):
 
 
 def public_verify(request, token):
-    certificate = get_object_or_404(Certificate, verification_token=token)
+    certificate = get_object_or_404(Certificate, verification_token=token,
+                                  status__in=[CertificateStatus.ISSUED, CertificateStatus.REVOKED])
     is_valid = certificate.status == CertificateStatus.ISSUED
     return render(request, 'vericore/public_verify.html', {'certificate': certificate, 'is_valid': is_valid})
 
@@ -180,4 +204,4 @@ def audit_log_list(request):
     certificate_id = request.GET.get('certificate_id', '')
     if certificate_id:
         logs = logs.filter(certificate__certificate_id__icontains=certificate_id)
-    return render(request, 'vericore/audit_logs.html', {'logs': logs, 'certificate_id': certificate_id})
+    return render(request, 'vericore/audit_logs.html', {'logs': Paginator(logs, 30).get_page(request.GET.get('page')), 'certificate_id': certificate_id})

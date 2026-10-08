@@ -1,17 +1,22 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3"><h2>Certificates</h2><a href="{% url 'certificate_create' %}" class="btn btn-primary">New</a></div>
+<div class="d-flex justify-content-between align-items-center mb-3"><h2>Certificates</h2>{% if can_create %}<a href="{% url 'certificate_create' %}" class="btn btn-primary">New certificate</a>{% endif %}</div>
 <form method="get" class="row g-2 mb-3">
   <div class="col-md-5"><input type="text" class="form-control" name="q" value="{{ query }}" placeholder="Search by student, course, institution, UUID"></div>
   <div class="col-md-3"><select name="status" class="form-select"><option value="">All statuses</option>{% for value,label in status_choices %}<option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
   <div class="col-md-2"><button class="btn btn-outline-secondary w-100">Filter</button></div>
 </form>
-<table class="table table-hover bg-white">
+<div class="table-responsive"><table class="table table-hover bg-white">
   <thead><tr><th>Student</th><th>Course</th><th>Status</th><th>Issue Date</th><th></th></tr></thead>
   <tbody>
     {% for cert in certificates %}
       <tr><td>{{ cert.student_name }}</td><td>{{ cert.course_name }}</td><td><span class="badge text-bg-secondary">{{ cert.status }}</span></td><td>{{ cert.issue_date }}</td><td><a href="{% url 'certificate_detail' cert.pk %}">View</a></td></tr>
     {% empty %}<tr><td colspan="5">No certificates found.</td></tr>{% endfor %}
   </tbody>
-</table>
+</table></div>
+<nav aria-label="Certificate pages" class="d-flex align-items-center gap-3">
+  {% if certificates.has_previous %}<a href="?q={{ query|urlencode }}&status={{ selected_status|urlencode }}&page={{ certificates.previous_page_number }}">Previous</a>{% endif %}
+  <span>Page {{ certificates.number }} of {{ certificates.paginator.num_pages }} · {{ certificates.paginator.count }} certificates</span>
+  {% if certificates.has_next %}<a href="?q={{ query|urlencode }}&status={{ selected_status|urlencode }}&page={{ certificates.next_page_number }}">Next</a>{% endif %}
+</nav>
 {% endblock %}

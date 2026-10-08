@@ -1,4 +1,4 @@
-from .models import UserRole
+from .models import CertificateStatus, UserRole
 
 
 def get_user_role(user):
@@ -10,8 +10,12 @@ def get_user_role(user):
 
 
 def can_edit_certificate(user, certificate):
+    return can_manage_certificate(user, certificate) and certificate.status in [CertificateStatus.DRAFT, CertificateStatus.REJECTED]
+
+
+def can_manage_certificate(user, certificate):
     role = get_user_role(user)
-    return role in [UserRole.ADMIN, UserRole.ISSUER] and certificate.status in ['Draft', 'Rejected']
+    return role == UserRole.ADMIN or (role == UserRole.ISSUER and certificate.created_by_id == user.pk)
 
 
 def can_review(user):

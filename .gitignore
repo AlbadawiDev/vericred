@@ -181,8 +181,16 @@ pyrightconfig.json
 [Ll]ib
 [Ll]ib64
 [Ll]ocal
-[Ss]cripts
+# Project scripts are source; virtual environments are excluded above.
 pyvenv.cfg
 pip-selfcheck.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python,venv
+# Local demo data and credentials must never be published.
+*.sqlite3
+media/
+.demo-credentials.json
+.env
+.venv/
+*.log
+*.sqlite3-*

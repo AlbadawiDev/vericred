@@ -63,11 +63,14 @@ class Certificate(models.Model):
     def get_public_verify_url(self):
         return reverse('public_verify', kwargs={'token': self.verification_token})
 
+    def get_absolute_verify_url(self):
+        return settings.PUBLIC_BASE_URL + self.get_public_verify_url()
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         if not self.qr_code:
             qr = qrcode.QRCode(version=1, box_size=10, border=4)
-            qr.add_data(self.get_public_verify_url())
+            qr.add_data(self.get_absolute_verify_url())
             qr.make(fit=True)
             img = qr.make_image(fill_color='black', back_color='white')
             buffer = BytesIO()
